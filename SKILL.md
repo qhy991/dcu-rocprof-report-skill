@@ -40,7 +40,7 @@ Unlike Nsight Compute, **rocprof has no rule engine and no "Est. Speedup" hints*
 
 ## Quickstart (what to do when someone says "profile this kernel")
 
-0. **Read this file and locate the owning GPU gateway first.** In an agent/Ralph campaign, record the exact profiler obligation or a task-specific reason profiling is not decision-relevant. Create a run directory under `profile/<run_name>/` — one directory per run, never reuse. Each run contains `harness/`, `reports/`, `analysis/`, and `REPORT.md`. See [`reference/00-directory-layout.md`](reference/00-directory-layout.md).
+0. **Read this file and locate the owning GPU gateway first.** In an agent/Ralph campaign, put an explicit `Read` of this `SKILL.md` in the task's first-round instructions; do not rely on automatic skill triggering from a symlink or a vague "optimize" prompt. Record the skill path/hash and the exact profiler obligation or a task-specific reason profiling is not decision-relevant. Create a run directory under `profile/<run_name>/` — one directory per run, never reuse. Each run contains `harness/`, `reports/`, `analysis/`, and `REPORT.md`. See [`reference/00-directory-layout.md`](reference/00-directory-layout.md).
 
 1. **Decide what you're profiling.** Which shapes, which dispatch path, what question. If inputs are variable-sized, pick representative shapes from the user's workload — never profile with arbitrary inputs.
 
