@@ -47,15 +47,23 @@ grd, wgr = int(r["grd"]), int(r["wgr"])
 assert grd / wgr * (wgr // 64) == waves  # grid consistency check
 ```
 
-Aggregate across rows of the same kernel (profiled runs may emit one row per dispatch):
+Aggregate across rows of the same kernel (profiled runs may emit one row per
+dispatch). **Sum counters, average percentages, and sum each launch's expected
+waves before comparing them with aggregate `Wavefronts`:**
 
 ```python
 from collections import defaultdict
 agg = defaultdict(lambda: defaultdict(float))
+percentages = defaultdict(list)
+expected_waves = defaultdict(float)
 for r in rows:
     k = r["KernelName"].split("(")[0]
-    for m in ("Wavefronts", "VALUInsts", "FETCH_SIZE", "GPUBusy"):
+    for m in ("Wavefronts", "VALUInsts", "FETCH_SIZE"):
         agg[k][m] += float(r[m])
+    percentages[k].append(float(r["GPUBusy"]))
+    expected_waves[k] += int(r["grd"]) / int(r["wave_size"])
+# mean(percentages[k]) is a per-dispatch average, not cumulative GPU busy.
+# Compare agg[k]["Wavefronts"] with expected_waves[k], not one row's grid.
 ```
 
 ## Ratios worth computing
@@ -64,11 +72,16 @@ See 05-analysis-dimensions for interpretation; the formulas:
 
 ```python
 valu_ipc        = VALUInsts / (SQ_BUSY_CYCLES or elapsed_cycles)   # or VALUInstrRate directly
-bytes_total     = FETCH_SIZE + WRITE_SIZE                            # KB
-achieved_bw_pct = bytes_total / 1024 / kernel_seconds / peak_bytes  # peak: measure, don't assume
+bytes_total     = FETCH_SIZE + WRITE_SIZE  # only when both metrics were collected, KB
+achieved_bw_pct = bytes_total / 1024 / kernel_seconds / peak_bytes  # use a separate no-profiler timing and measured peak
 waves_per_cu    = SQ_WAVES_CU / num_CUs                             # occupancy indicator
 ```
 
 Prefer **derived metrics rocprof already computes** (`VALUBusy`, `SALUBusy`, `MemUnitBusy`, `L2CacheHit`) over hand-rolled ratios — they encode the correct per-instance sums/maxes. Hand-roll only what's not in the list (see 08-gfx938-metric-names).
 
-`helpers/analyze_csv.py` implements all of the above; run it on the CSV and read its summary before writing any analysis by hand.
+`helpers/analyze_csv.py` implements the counter and percentage aggregation;
+run it on the CSV before writing any analysis. Its optional
+`--peak-bw-gbps` requires an independently measured peak and it prints a
+traffic floor only when **both** read and write metrics were collected. With
+only `FETCH_SIZE`, total traffic is unknown rather than zero writes. Profiled
+durations themselves are not speed scores.

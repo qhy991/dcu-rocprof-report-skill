@@ -85,6 +85,22 @@ kernel_object: 0x...
 
 Filter CSV `KernelName` values with prefix/regex matches (`rmsnorm.*`), never equality — DTK appends a `[clone .kd]` clone suffix to device kernels.
 
+## 11. AITER first-call JIT can fail under rocprof
+
+Observed on the node4 DTK vLLM 0.29/AITER 0.1.5 image while collecting six
+RMSNorm counters: rocprof was operational and wrote a partial CSV, but AITER's
+first-call compiler probe ran `aicc --offload-arch=native` under the profiler.
+The compiler then treated profiler counter text as target IDs and raised
+`required GPU target/compiler flag is not supported`. No RMSNorm kernel row
+was collected, so the receipt was `not_qualified` despite the partial CSV.
+
+Prewarm the exact module under the task's GPU admission **without** rocprof,
+using a persistent ignored `AITER_JIT_DIR` under the mounted worktree. Re-run
+the same source/image/HCU with rocprof and a new create-only receipt; verify
+the expected kernel rows and terminal status. A transient container's `/tmp`
+JIT cache does not carry across jobs. This fix was verified for the stated
+RMSNorm path, not for every AITER operator.
+
 ---
 
 ## Proven port example (reference for effort estimation)

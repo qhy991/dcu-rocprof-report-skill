@@ -28,6 +28,12 @@ kernel 在 DCU 上慢"*, or *"帮我把这个 CUDA kernel 移植到 DCU"*.
 
 Entry point: [`SKILL.md`](SKILL.md).
 
+For governed operator experiments, use the task's existing GPU admission
+wrapper to launch `rocprof`; the bundled Docker helper is a standalone
+fallback. A `bw1100-bench` command and receipt requirements are in
+[`reference/03-collection.md`](reference/03-collection.md). This keeps a
+diagnostic profile separate from the no-profiler timing used as a score.
+
 ## Layout
 
 ```

@@ -1,6 +1,49 @@
 # Collection (rocprof on DTK)
 
-All commands run **inside the DTK container** with GPU devices and the hyhal runtime mounted:
+All commands run **inside the DTK container** with GPU devices and the hyhal runtime mounted. First inspect whether the task owns an HCU admission route. When it does, run the profiler as that route's child command rather than starting a second Docker container. For example, in `bw1100-bench` (paths and receipt names are create-only):
+
+```bash
+HIP_VISIBLE_DEVICES=1 BWBENCH_TIMEOUT=600 \
+  bash scripts/rocprof.sh "$IMAGE" \
+  .local/profile/run-001/admission.json \
+  .local/profile/run-001/pmc.txt \
+  .local/profile/run-001/reports/metrics.csv \
+  'Rmsnorm2dFwd' \
+  python3 /work/.local/profile/run-001/harness.py
+```
+
+Create `.local/profile/run-001/pmc.txt` and the harness first. In this repo,
+`scripts/rocprof.sh` invokes `scripts/dtk.sh gpu` and requires a matching
+kernel row plus all requested metric columns before writing a create-only
+validation JSON. The repository is mounted writable at `/work` and `/tmp`
+holds profiler scratch files. Keep the
+benchmark's original workload, exact source/image identity, selected idle HCU,
+and terminal receipt together. Check that the terminal says `completed` with
+exit 0 **and** that `metrics-validation.json` says `passed` for the actual
+target kernel. Other repositories can invoke rocprof as a child of their own
+admission wrapper with equivalent checks.
+An empty CSV, missing terminal, or SSH disconnection is not a profile. Do not
+substitute profiled durations for separately measured no-profiler latency.
+
+### JIT-backed library kernels
+
+On the node4 DTK vLLM 0.29/AITER 0.1.5 image, a first AITER RMSNorm call *inside*
+rocprof failed before the kernel ran: its JIT flag probe invoked
+`aicc --offload-arch=native`, which received profiler counter text as invalid
+GPU target IDs. The failed gateway receipt was `not_qualified`; the partial
+CSV contained input-generation kernels only and was **not** a baseline profile.
+Prewarm the exact source and original workload once through the same admission
+gateway **without** rocprof. Set `AITER_JIT_DIR` *before import* to a persistent
+writable path under the repository's ignored `.local/`, not the container's
+ephemeral `/tmp`. After a completed prewarm receipt and observed HCU release,
+run rocprof with the same image, HCU and cache path but a new profiler receipt.
+This produced three actual `Rmsnorm2dFwd` counter rows on HCU1 (`gpu-id=9`),
+with a completed terminal receipt. Preserve the failed first attempt; do not
+relabel its partial CSV as successful. Other JIT libraries need their own
+cache/target checks rather than an assumed equivalent fix.
+
+Only when there is **no** project-owned gateway, a standalone command can use
+the skill's `helpers/profile_container.sh` or the equivalent raw Docker route:
 
 ```bash
 docker run --rm --device /dev/dri --device /dev/kfd \
