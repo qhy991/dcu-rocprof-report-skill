@@ -76,6 +76,7 @@ Keep profiling separate from a score. Use ordinary no-profiler paired timing for
 | [`reference/07-report-template.md`](reference/07-report-template.md) | Report structure |
 | [`reference/08-gfx938-metric-names.md`](reference/08-gfx938-metric-names.md) | The verified metric vocabulary on DCU (297 derived + basic) |
 | [`reference/09-common-issues.md`](reference/09-common-issues.md) | **The three CUDA→HIP port traps, the shfl VMFault, rocprof aborts, VMFault dump reading** |
+| [`reference/10-serving-step-profiling.md`](reference/10-serving-step-profiling.md) | **Profiling a vLLM serving step (graphs, MTP, DP): which tool drops graph kernels (torch/hipprof do, rocprofv2 `--kernel-trace` does not), the window recipe, steady-decode gating, and the failure catalogue** |
 
 ### Helpers
 
@@ -104,6 +105,14 @@ Keep profiling separate from a score. Use ordinary no-profiler paired timing for
 7. **Aggregate the right kinds of metrics.** Sum event counts such as `Wavefronts` across dispatches, but average per-dispatch percentages such as `GPUBusy`. Never infer total traffic or a bandwidth floor from `FETCH_SIZE` alone when `WRITE_SIZE` was not collected. The repaired [`helpers/analyze_csv.py`](helpers/analyze_csv.py) enforces this distinction.
 
 ---
+
+## Serving steps, not kernels
+
+If the target is one decode step of a served model (vLLM, graphs, MTP, data parallel), start with
+[10-serving-step-profiling](reference/10-serving-step-profiling.md). Two rules from that reference
+override the kernel workflow above: (1) torch.profiler and hipprof drop most kernels of a HIP graph
+replay, so rank ops only from `rocprofv2 --kernel-trace`; (2) open the profile window only after
+the server reaches steady decode of the target shape, gated on `/metrics`.
 
 ## Related skills
 
