@@ -1,6 +1,6 @@
 ---
 name: dcu-rocprof-report-skill
-description: Profile HIP/CUDA kernels with rocprof on Hygon DCU (bw1100 / gfx938 / DTK). Use for DCU kernel profiling, bottleneck diagnosis, CUDA-to-DCU ports, and agent/Ralph operator optimization campaigns that need a GPU-side mechanism claim — including "profile 一下", "为什么慢", "rocprof 报告", "DCU 移植", and "算子优化".
+description: Profile HIP/CUDA kernels and served-model graph nodes with rocprof or xsys on Hygon DCU (bw1100 / gfx938 / DTK). Use for DCU profiling, bottleneck diagnosis, CUDA-to-DCU ports, and operator optimization campaigns that need a GPU-side mechanism claim.
 ---
 
 # Skill: DCU Kernel Profiling (Hygon DCU / rocprof)
@@ -76,7 +76,7 @@ Keep profiling separate from a score. Use ordinary no-profiler paired timing for
 | [`reference/07-report-template.md`](reference/07-report-template.md) | Report structure |
 | [`reference/08-gfx938-metric-names.md`](reference/08-gfx938-metric-names.md) | The verified metric vocabulary on DCU (297 derived + basic) |
 | [`reference/09-common-issues.md`](reference/09-common-issues.md) | **The three CUDA→HIP port traps, the shfl VMFault, rocprof aborts, VMFault dump reading** |
-| [`reference/10-serving-step-profiling.md`](reference/10-serving-step-profiling.md) | **Profiling a vLLM serving step (graphs, MTP, DP): which tool drops graph kernels (torch/hipprof do, rocprofv2 `--kernel-trace` does not), the window recipe, steady-decode gating, and the failure catalogue** |
+| [`reference/10-serving-step-profiling.md`](reference/10-serving-step-profiling.md) | Serving profiling: validate graph coverage, file ownership, workload and rank boundaries, output quality, and profiler perturbation. |
 
 ### Helpers
 
@@ -85,6 +85,8 @@ Keep profiling separate from a score. Use ordinary no-profiler paired timing for
 | [`helpers/harness_template.hip`](helpers/harness_template.hip) | Standalone HIP harness — paste kernel, fill allocation, compile with one command |
 | [`helpers/analyze_csv.py`](helpers/analyze_csv.py) | Parse rocprof CSV, compute derived ratios (IPC, occupancy, bandwidth %) |
 | [`helpers/profile_container.sh`](helpers/profile_container.sh) | Standalone DTK container fallback **only when no project-owned GPU gateway exists** |
+| [`helpers/verify_xsys_model_trace.py`](helpers/verify_xsys_model_trace.py) | Validate xsys HCC Task files, worker PID/device identity, graph coverage, and named kernel presence |
+| [`helpers/xsys_graph_probe.py`](helpers/xsys_graph_probe.py) | Exercise one CUDA Graph on every visible worker before a full xsys service trace |
 
 ---
 
@@ -108,11 +110,12 @@ Keep profiling separate from a score. Use ordinary no-profiler paired timing for
 
 ## Serving steps, not kernels
 
-If the target is one decode step of a served model (vLLM, graphs, MTP, data parallel), start with
-[10-serving-step-profiling](reference/10-serving-step-profiling.md). Two rules from that reference
-override the kernel workflow above: (1) torch.profiler and hipprof drop most kernels of a HIP graph
-replay, so rank ops only from `rocprofv2 --kernel-trace`; (2) open the profile window only after
-the server reaches steady decode of the target shape, gated on `/metrics`.
+For a served-model step with graphs, MTP, and data parallelism, use
+[10-serving-step-profiling](reference/10-serving-step-profiling.md). Verify graph-node coverage,
+per-process files, phase and rank boundaries, output quality, and profiler perturbation before
+interpreting an operator share. For the current bw1100 serving image, use its verified xsys
+short-window mode before continuous rocprofv2 kernel tracing. Request counts alone do not establish
+steady decode. A graph-count probe or a nonempty trace does not qualify full-model performance.
 
 ## Related skills
 
