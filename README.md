@@ -5,10 +5,13 @@ DCU-3G, gfx938, DTK 26.04) with **rocprof** — the rocprof/DCU counterpart of
 [mit-han-lab/ncu-report-skill](https://github.com/mit-han-lab/ncu-report-skill)
 (which targets NVIDIA B200 + Nsight Compute).
 
-Everything in `reference/` and `helpers/` was **verified on real DCU hardware**:
-the rocprof CSV schema, the metric vocabulary, the counter-group abort behavior,
-and every entry in the common-issues list was observed or bisection-proven on
-DCU-3G devices running DTK 26.04.
+Unless a reference explicitly marks an item as not yet GPU-verified, everything
+in `reference/` and `helpers/` was **verified on real DCU hardware**: the rocprof
+CSV schema, the metric vocabulary, the counter-group abort behavior, and every
+entry in the common-issues list was observed or bisection-proven on DCU-3G
+devices running DTK 26.04. The serving-step guide
+([`reference/10-serving-step-profiling.md`](reference/10-serving-step-profiling.md))
+states per item whether it has been verified on a GPU.
 
 ## What's different from the ncu skill
 
@@ -40,10 +43,18 @@ diagnostic profile separate from the no-profiler timing used as a score.
 SKILL.md                      # entry point: when to use, quickstart, golden rules
 reference/00-09               # workflow, harness, collection, parsing, analysis,
                               # diagnosis playbook, report template, metric names, common issues
+reference/10                  # profiling a served model step on BW1100: per-collector graph-node
+                              # coverage, rank/phase/file gates, xsys short-window recipe,
+                              # perturbation estimate, failure catalogue
 helpers/
   harness_template.hip        # standalone HIP harness (paste kernel, compile, profile)
   analyze_csv.py              # rocprof CSV parser + derived ratios + consistency checks
   profile_container.sh        # wrap any command in the DTK container with rocprof on PATH
+  compiler_env/               # CPU-verified preload boundary for compiler child processes
+  serving_*_probe.py          # graph / ROCTX marker probes for one served-model step
+  verify_*trace*.py           # trace, inventory and xsys Task-file validators
+  xsys_graph_probe.py         # exercise one graph on every visible worker before a full trace
+  test_*.py                   # CPU tests for the validators
 ```
 
 ## Provenance
